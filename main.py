@@ -62,7 +62,7 @@ async def getDiscussTitle(session, url):
         discussTitle = htmlSource.find("h2", class_="ccnMdlHeading").text #type:ignore
         return courseTitle, discussTitle, url
 
-async def controller():
+async def main():
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
         params = {
             "anchor": "",
@@ -80,13 +80,13 @@ async def controller():
             getDiscussResults = await asyncio.gather(*discussTasks)
             discussDatas = dict(zip(courseName, getDiscussResults))
 
-            forumTasks:list = []
+            findDiscussTasks:list = []
             discussUrls:list = []
             for discussName in courseName:
                 for discussUrl in discussDatas[discussName]:
                     discussUrls.append(discussUrl)
-                    forumTasks.append(asyncio.create_task(findDiscussExistence(session, discussUrl)))
-            getForumResults = await asyncio.gather(*forumTasks)
+                    findDiscussTasks.append(asyncio.create_task(findDiscussExistence(session, discussUrl)))
+            getForumResults = await asyncio.gather(*findDiscussTasks)
             forumDatas = dict(zip(discussUrls, getForumResults))
 
             forumUrls:list = []
@@ -101,6 +101,6 @@ async def controller():
         
 if __name__ == "__main__":
     start = perf_counter()
-    asyncio.run(controller())
+    asyncio.run(main())
     end = perf_counter() - start
     print(end)
