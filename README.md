@@ -5,7 +5,7 @@ Anda kesal karena dosen gak ngasih tau ketika E-learing muncul? ini jawabannya.
 Program ini akan mendeteksi kalo ada elearning yang belum selesai, berikut adalah cara penggunaannya:
 
 1. Buka file `.env.template` terlebih dahulu
-2. Edit variable yang ada didalam file tersebut dengan data kamu
+2. Edit variable yang ada di dalam file tersebut dengan data kamu
 3. Lalu save ulang file tersebut dengan nama `.env`
 4. Install modul yang dibutuhkan dengan command ini ```pip install -r requirement.txt```
 5. Lalu jalankan `main.py` dengan command ini ```python main.py```
