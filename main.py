@@ -1,7 +1,14 @@
 import aiohttp
 import asyncio
+import os
+from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from time import perf_counter
+
+load_dotenv()
+
+username = os.getenv("UNPAM_NIM")
+password = os.getenv("UNPAM_PASS")
 
 URL = "https://e-learning.unpam.ac.id/my/"
 LOGIN_URL = "https://e-learning.unpam.ac.id/login/index.php"
@@ -67,8 +74,8 @@ async def main():
         params = {
             "anchor": "",
             "logintoken": await asyncio.create_task(getLoginToken(session)),
-            "username": "211011450446",
-            "password": "02194316762a"
+            "username": username,
+            "password": password
         }
         if await asyncio.create_task(loginRequest(session, params)):
             courseList = await asyncio.create_task(getCourseUrls(session, URL))
@@ -77,8 +84,8 @@ async def main():
             for courseData in courseList:
                 courseName.append(courseData["courseName"])
                 discussTasks.append(asyncio.ensure_future(getDiscussUrls(session, courseData["courseUrl"])))
-            getDiscussResults = await asyncio.gather(*discussTasks)
-            discussDatas = dict(zip(courseName, getDiscussResults))
+            discussResults = await asyncio.gather(*discussTasks)
+            discussDatas = dict(zip(courseName, discussResults))
 
             findDiscussTasks:list = []
             discussUrls:list = []
@@ -86,8 +93,8 @@ async def main():
                 for discussUrl in discussDatas[discussName]:
                     discussUrls.append(discussUrl)
                     findDiscussTasks.append(asyncio.create_task(findDiscussExistence(session, discussUrl)))
-            getForumResults = await asyncio.gather(*findDiscussTasks)
-            forumDatas = dict(zip(discussUrls, getForumResults))
+            forumResults = await asyncio.gather(*findDiscussTasks)
+            forumDatas = dict(zip(discussUrls, forumResults))
 
             forumUrls:list = []
             getTitleTasks:list = []
@@ -95,9 +102,9 @@ async def main():
                 if (status and status != None): forumUrls.append(url)
             for forumUrl in forumUrls:
                 getTitleTasks.append(asyncio.create_task(getDiscussTitle(session, forumUrl))) #type: ignore
-            getTitleResults = await asyncio.gather(*getTitleTasks)
-            if len(getTitleTasks) != 0: return getTitleResults
-            else: return False
+            titleResults = await asyncio.gather(*getTitleTasks)
+            if len(getTitleTasks) != 0: print(titleResults)
+            else: return ""
         
 if __name__ == "__main__":
     start = perf_counter()
