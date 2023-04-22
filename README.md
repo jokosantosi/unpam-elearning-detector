@@ -2,10 +2,10 @@
 Anda kesal karena dosen gak ngasih tau ketika E-learing muncul? ini jawabannya. Program ini akan membantu kamu menemukan forum diskusi yang belum diselesaikan jadi kamu gak perlu nanya ke temen dan ngecekin satu-satu.
 
 # Dependensi
-- Asyncio
-- Aiohttp
+- asyncio
+- aiohttp
 - bs4 / BeatifulSoup4
-- Dotenv
+- dotenv
 - os
 
 # Penggunaan
