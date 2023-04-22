@@ -6,7 +6,6 @@ Anda kesal karena dosen gak ngasih tau ketika E-learing muncul? ini jawabannya. 
 - aiohttp
 - bs4 / BeatifulSoup4
 - dotenv
-- os
 
 # Penggunaan
 
