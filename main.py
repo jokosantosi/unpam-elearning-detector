@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
 load_dotenv()
+sem = asyncio.Semaphore(10)
 
 username = os.getenv("UNPAM_NIM") or str(input("Masukan NIM kamu : "))
 password = os.getenv("UNPAM_PASS") or str(input("Masukan password E-learning kamu : "))
@@ -50,16 +51,17 @@ async def getDiscussUrls(session, url):
         return forumDiscussUrls
 
 async def findDiscussExistence(session, url):
-    async with session.get(url) as response:
-        htmlSource = BeautifulSoup(await response.text(), 'html.parser')
-        discussTable = htmlSource.find('table', class_='table discussion-list')
-        if discussTable != None:
-            discussForums = discussTable.find_all("tr", class_="discussion") #type: ignore
-            manyDiscussForum = len(discussForums)
-            for discussForum in discussForums:
-                if (len(discussForum['class']) == 2): manyDiscussForum -= 1
-            if manyDiscussForum >= 1: return True
-            else: return False
+    async with sem:
+        async with session.get(url) as response:
+            htmlSource = BeautifulSoup(await response.text(), 'html.parser')
+            discussTable = htmlSource.find('table', class_='table discussion-list')
+            if discussTable != None:
+                discussForums = discussTable.find_all("tr", class_="discussion") #type: ignore
+                manyDiscussForum = len(discussForums)
+                for discussForum in discussForums:
+                    if (len(discussForum['class']) == 2): manyDiscussForum -= 1
+                if manyDiscussForum >= 1: return True
+                else: return False
 
 async def getDiscussInfo(session, url):
     async with session.get(url) as response:
