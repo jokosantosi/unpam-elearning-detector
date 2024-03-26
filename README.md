@@ -25,5 +25,5 @@ python main.py
 Kamu udah ngerjain tapi program ini masih ngasih link forum yang udah kamu ngerjain? kalo kamu ngerasa gitu pastiin semua forum itu udah kamu centang bagian `Subscribenya`
 
 <p align="center">
-  <img width="300" src="https://user-images.githubusercontent.com/92248772/233781383-c581dc24-9900-4722-a4fd-401a1cd865fd.png" alt="Example image">
+  ![image](https://github.com/jokosantosi/unpam-elearning-detector/assets/92248772/46d45277-38e3-432e-b0f0-73eb208db0bd)
 </p>
