@@ -8,12 +8,14 @@ from selenium.webdriver import ChromeOptions
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+import chromedriver_autoinstaller
 
 load_dotenv()
 sem = asyncio.Semaphore(10)
 
 class unpamChecker():
     def __init__(self) -> None:
+        chromedriver_autoinstaller.install()
         self.username = os.getenv("UNPAM_NIM") or str(input("Masukan NIM kamu : "))
         self.password = os.getenv("UNPAM_PASS") or str(input("Masukan password E-learning kamu : "))
         self.URL = "https://e-learning.unpam.ac.id/my/"
@@ -43,13 +45,6 @@ class unpamChecker():
             return [driver.page_source, aiohttp_cookies]
         except:
             return False
-        
-    async def loginRequest(self, session, params):
-        async with session.post(self.LOGIN_URL, data=params) as response:
-            print("[+] Login...")
-            if (response.status == 200): return True
-            else:
-                return False
 
     async def getCourseUrls(self, response):
         htmlSource = BeautifulSoup(response, "html.parser")
@@ -95,7 +90,6 @@ class unpamChecker():
         async with session.get(url) as response:
             htmlSource = BeautifulSoup(await response.text(), "html.parser")
             courseData = htmlSource.find_all('li', class_="breadcrumb-item")
-            print(courseData)
             if courseData:
                 courseTitle = courseData[0].a['title']
                 forumTitle = courseData[1].span.text
@@ -139,9 +133,10 @@ class unpamChecker():
                         for i in range(len(titleResults)):
                             if (titleResults[i][0] != titleResults[i-1][0]):
                                 result += titleResults[i][0] + "\n"
-                                result += f'  {titleResults[i][1]} : {titleResults[i][2]}\n'
+                                result += f'   {titleResults[i][1]} : {titleResults[i][2]}\n'
                             else:
-                                result += f'  {titleResults[i][1]} : {titleResults[i][2]}\n'
+                                if len(titleResults) == 1: result += titleResults[i][0] + "\n"
+                                result += f'   {titleResults[i][1]} : {titleResults[i][2]}\n'
                         return result
                     else: return "Selamat! kamu udah nyelesain semua tugas dosen, pasti dosen senang dan kamu aman"
         else: return "Gk bisa login, coba cek lagi deh"
