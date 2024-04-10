@@ -1,4 +1,6 @@
 aiohttp==3.8.4
+asyncio==3.4.3
 beautifulsoup4==4.11.2
+chromedriver-autoinstaller==0.6.4
 python-dotenv==1.0.0
 selenium==4.18.1
