@@ -7,6 +7,7 @@ Anda kesal karena dosen gak ngasih tau ketika E-learing muncul? ini jawabannya. 
 - bs4 / BeatifulSoup4
 - dotenv
 - selenium (untuk login)
+- chromedriver-autoinstaller
 
 # Penggunaan
 
