@@ -3,64 +3,45 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver import ChromeOptions
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-import chromedriver_autoinstaller
 
 load_dotenv()
 sem = asyncio.Semaphore(10)
 
 class unpamChecker():
     def __init__(self) -> None:
-        chromedriver_autoinstaller.install()
         self.username = os.getenv("UNPAM_NIM") or str(input("Masukan NIM kamu : "))
         self.password = os.getenv("UNPAM_PASS") or str(input("Masukan password E-learning kamu : "))
-        self.URL = "https://e-learning.unpam.ac.id/my/"
-        self.LOGIN_URL = "https://e-learning.unpam.ac.id/login/index.php"
+        self.URL = "https://e-learning.unpam.id/my/"
+        self.LOGIN_URL = "https://e-learning.unpam.id/login/index.php"
+        self.COURSE_API_URL = "https://e-learning.unpam.id/lib/ajax/service.php?"
 
-    async def getLoginToken(self, session):
+    async def login(self, session):
         async with session.get(self.LOGIN_URL) as response:
             htmlSource = BeautifulSoup(await response.text(), "html.parser")
             loginToken = htmlSource.find_all("input", {"name":"logintoken"})[0].get('value')
-            return loginToken
-    
-    def loginBySelenium(self):
-        chromeOptions = ChromeOptions()
-        chromeOptions.add_argument("--headless")
-        driver = webdriver.Chrome(options=chromeOptions)
-        print("[+] Login...")
-        try:
-            driver.get(self.LOGIN_URL)
-            wait = WebDriverWait(driver, 30)
-            
-            userInput = wait.until(EC.element_to_be_clickable((By.XPATH, '//input[@id="username"]'))).send_keys(self.username)
-            passInput = wait.until(EC.element_to_be_clickable((By.XPATH, '//input[@id="password"]'))).send_keys(self.password)
-            loginButton = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@id="loginbtn"]'))).click()
-            courseContainer = wait.until(EC.visibility_of_element_located((By.XPATH, '//div[@data-region="course-content"]')))
-            
-            aiohttp_cookies = {cookie['name']: cookie['value'] for cookie in driver.get_cookies()}
-            return [driver.page_source, aiohttp_cookies]
-        except:
-            return False
+            print(loginToken)
+            dataLogin = {
+                "anchor": "",
+                "logintoken": loginToken,
+                "username": self.username,
+                "password": self.password
+            }
+            async with session.post(self.LOGIN_URL, data=dataLogin) as response:
+                print(response.status)
+                if response.status == 200:
+                    return await response.text()
+                else:
+                    return False
 
-    async def getCourseUrls(self, response):
+    async def getCourseAPI(self, response, session):
         htmlSource = BeautifulSoup(response, "html.parser")
-        dashboardContent = htmlSource.find_all('div', class_="card dashboard-card") #type: ignore
-        courseLinkIndentity = "https://e-learning.unpam.ac.id/course/view.php?id"
-        courseList:list = []
-        for content in dashboardContent:
-            try:
-                aElement = content.find('a', class_="aalink coursename mr-2 mb-1")
-                if aElement != None:
-                    courseUrl = str(aElement.get("href"))
-                    courseName = aElement.find('span', class_="multiline")
-                    if (courseUrl.find(courseLinkIndentity) != -1) and (courseName != None):
-                        courseList.append({"courseName": courseName.text.replace("\n", ""), "courseUrl": courseUrl})
-            except AttributeError: pass
-        return courseList
+        dropDownMenu = htmlSource.find('div', id="carousel-item-main")
+        logoutElement = dropDownMenu.find_all("a", class_="dropdown-item")
+        sessionKey = logoutElement[-1].get("href").replace("https://e-learning.unpam.id/login/logout.php?sesskey=", "")
+        params = [{"index":0,"methodname":"core_course_get_enrolled_courses_by_timeline_classification","args":{"offset":0,"limit":0,"classification":"all","sort":"fullname","customfieldname":"","customfieldvalue":""}}]
+        async with session.post(self.COURSE_API_URL+"sesskey="+sessionKey+"&info=core_course_get_enrolled_courses_by_timeline_classification", json=params) as resp:
+            data = await resp.json()
+            return data[0]["data"]["courses"]
 
     async def getDiscussUrls(self, session, url):
         async with session.get(url) as response:
@@ -96,50 +77,50 @@ class unpamChecker():
                 return [courseTitle, forumTitle, url]
 
     async def main(self):
-        res = self.loginBySelenium()
-        if res:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), cookies=res[1]) as session:
-                    print("[+] Getting course list...")
-                    courseList = await asyncio.create_task(self.getCourseUrls(res[0]))
-                    discussTasks:list = []
-                    courseName:list = []
-                    for courseData in courseList:
-                        courseName.append(courseData["courseName"])
-                        discussTasks.append(asyncio.ensure_future(self.getDiscussUrls(session, courseData["courseUrl"])))
-                    discussResults = await asyncio.gather(*discussTasks)
-                    discussDatas = dict(zip(courseName, discussResults))
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+            loginResp = await asyncio.create_task(self.login(session))
+            if loginResp:
+                print("[+] Getting course list...")
+                courseDatas = await asyncio.create_task(self.getCourseAPI(loginResp, session))
+                discussTasks:list = []
+                courseName:list = []
+                for courseData in courseDatas:
+                    courseName.append(courseData["fullnamedisplay"])
+                    discussTasks.append(asyncio.ensure_future(self.getDiscussUrls(session, courseData["viewurl"])))
+                discussResults = await asyncio.gather(*discussTasks)
+                discussDatas = dict(zip(courseName, discussResults))
 
-                    findDiscussTasks:list = []
-                    discussUrls:list = []
-                    for discussName in courseName:
-                        for discussUrl in discussDatas[discussName]:
-                            if discussUrl:
-                                discussUrls.append(discussUrl)
-                                findDiscussTasks.append(asyncio.create_task(self.findDiscussExistence(session, discussUrl)))
-                    print("[+] Getting Discuss Task...")
-                    forumResults = await asyncio.gather(*findDiscussTasks)
-                    forumDatas = dict(zip(discussUrls, forumResults))
-                    
-                    forumUrls:list = []
-                    getTitleTasks:list = []
-                    for url, status in forumDatas.items():
-                        if (status and status != None): forumUrls.append(url)
-                    for forumUrl in forumUrls:
-                        getTitleTasks.append(asyncio.create_task(self.getDiscussInfo(session, forumUrl)))
-                    print("[+] Getting Information About The Task...")
-                    titleResults = await asyncio.gather(*getTitleTasks)
-                    result:str = ""
-                    if len(getTitleTasks) != 0:
-                        for i in range(len(titleResults)):
-                            if (titleResults[i][0] != titleResults[i-1][0]):
-                                result += titleResults[i][0] + "\n"
-                                result += f'   {titleResults[i][1]} : {titleResults[i][2]}\n'
-                            else:
-                                if len(titleResults) == 1: result += titleResults[i][0] + "\n"
-                                result += f'   {titleResults[i][1]} : {titleResults[i][2]}\n'
-                        return result
-                    else: return "Selamat! kamu udah nyelesain semua tugas dosen, pasti dosen senang dan kamu aman"
-        else: return "Gk bisa login, coba cek lagi deh"
+                findDiscussTasks:list = []
+                discussUrls:list = []
+                for discussName in courseName:
+                    for discussUrl in discussDatas[discussName]:
+                        if discussUrl:
+                            discussUrls.append(discussUrl)
+                            findDiscussTasks.append(asyncio.create_task(self.findDiscussExistence(session, discussUrl)))
+                print("[+] Getting Discuss Task...")
+                forumResults = await asyncio.gather(*findDiscussTasks)
+                forumDatas = dict(zip(discussUrls, forumResults))
+                
+                forumUrls:list = []
+                getTitleTasks:list = []
+                for url, status in forumDatas.items():
+                    if (status and status != None): forumUrls.append(url)
+                for forumUrl in forumUrls:
+                    getTitleTasks.append(asyncio.create_task(self.getDiscussInfo(session, forumUrl)))
+                print("[+] Getting Information About The Task...")
+                titleResults = await asyncio.gather(*getTitleTasks)
+                result:str = ""
+                if len(getTitleTasks) != 0:
+                    for i in range(len(titleResults)):
+                        if (titleResults[i][0] != titleResults[i-1][0]):
+                            result += titleResults[i][0] + "\n"
+                            result += f'   {titleResults[i][1]} : {titleResults[i][2]}\n'
+                        else:
+                            if len(titleResults) == 1: result += titleResults[i][0] + "\n"
+                            result += f'   {titleResults[i][1]} : {titleResults[i][2]}\n'
+                    return result
+                else: return "Selamat! kamu udah nyelesain semua tugas dosen, pasti dosen senang dan kamu aman"
+            else: return "Gk bisa login, coba cek lagi deh"
             
 if __name__ == "__main__":
     print(asyncio.run(unpamChecker().main()))
