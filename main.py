@@ -19,7 +19,6 @@ class unpamChecker():
         async with session.get(self.LOGIN_URL) as response:
             htmlSource = BeautifulSoup(await response.text(), "html.parser")
             loginToken = htmlSource.find_all("input", {"name":"logintoken"})[0].get('value')
-            print(loginToken)
             dataLogin = {
                 "anchor": "",
                 "logintoken": loginToken,
@@ -27,7 +26,6 @@ class unpamChecker():
                 "password": self.password
             }
             async with session.post(self.LOGIN_URL, data=dataLogin) as response:
-                print(response.status)
                 if response.status == 200:
                     return await response.text()
                 else:
@@ -78,6 +76,7 @@ class unpamChecker():
 
     async def main(self):
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+            print("[+] Login...")
             loginResp = await asyncio.create_task(self.login(session))
             if loginResp:
                 print("[+] Getting course list...")
@@ -110,14 +109,18 @@ class unpamChecker():
                 print("[+] Getting Information About The Task...")
                 titleResults = await asyncio.gather(*getTitleTasks)
                 result:str = ""
+                judul = False
                 if len(getTitleTasks) != 0:
                     for i in range(len(titleResults)):
                         if (titleResults[i][0] != titleResults[i-1][0]):
                             result += titleResults[i][0] + "\n"
-                            result += f'   {titleResults[i][1]} : {titleResults[i][2]}\n'
+                            result += f'\t{titleResults[i][1]} : {titleResults[i][2].replace("e-learning.unpam.id", "e-learning.unpam.ac.id")}\n'
                         else:
-                            if len(titleResults) == 1: result += titleResults[i][0] + "\n"
-                            result += f'   {titleResults[i][1]} : {titleResults[i][2]}\n'
+                            if len(titleResults) == 2 or len(titleResults) == 1:
+                                if (not judul):
+                                    result += titleResults[i][0] + "\n"
+                                    judul = True
+                            result += f'\t{titleResults[i][1]} : {titleResults[i][2]}\n'
                     return result
                 else: return "Selamat! kamu udah nyelesain semua tugas dosen, pasti dosen senang dan kamu aman"
             else: return "Gk bisa login, coba cek lagi deh"
