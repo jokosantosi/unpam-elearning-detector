@@ -120,7 +120,7 @@ class unpamChecker():
                                 if (not judul):
                                     result += titleResults[i][0] + "\n"
                                     judul = True
-                            result += f'\t{titleResults[i][1]} : {titleResults[i][2]}\n'
+                            result += f'\t{titleResults[i][1]} : {titleResults[i][2].replace("e-learning.unpam.id", "e-learning.unpam.ac.id")}\n'
                     return result
                 else: return "Selamat! kamu udah nyelesain semua tugas dosen, pasti dosen senang dan kamu aman"
             else: return "Gk bisa login, coba cek lagi deh"
